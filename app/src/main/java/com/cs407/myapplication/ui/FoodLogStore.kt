@@ -27,14 +27,12 @@ class FoodLogStore(private val context: Context) {
         val current = prefs[LOGS_JSON] ?: "{}"
         val map: Map<DayKey, List<FoodItem>> =
             runCatching {
-                // ✅ 显式类型参数
                 json.decodeFromString<Map<DayKey, List<FoodItem>>>(current)
             }.getOrElse { emptyMap() }
         return map.mapValues { it.value.toMutableList() }.toMutableMap()
     }
 
     private suspend fun writeAll(all: Map<DayKey, List<FoodItem>>) {
-        // ✅ 显式类型参数
         val txt = json.encodeToString<Map<DayKey, List<FoodItem>>>(all)
         context.dataStore.edit { it[LOGS_JSON] = txt }
     }
@@ -44,7 +42,6 @@ class FoodLogStore(private val context: Context) {
             val txt = prefs[LOGS_JSON] ?: "{}"
             val map: Map<DayKey, List<FoodItem>> =
                 runCatching {
-                    // ✅ 显式类型参数
                     json.decodeFromString<Map<DayKey, List<FoodItem>>>(txt)
                 }.getOrElse { emptyMap() }
             map[day] ?: emptyList()
