@@ -1,5 +1,6 @@
 package com.cs407.myapplication.ui
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,14 +16,15 @@ fun NavPage() {
         navController = navController,
         startDestination = "camera"
     ) {
-        // Camera page
         composable("camera") {
             CameraScreen(
                 onTakePhoto = { imageUri ->
-                    navController.navigate("result?imageUri=$imageUri")
+                    val encoded = Uri.encode(imageUri)
+                    navController.navigate("result?imageUri=$encoded")
                 },
                 onOpenGallery = { imageUri ->
-                    navController.navigate("result?imageUri=$imageUri")
+                    val encoded = Uri.encode(imageUri)
+                    navController.navigate("result?imageUri=$encoded")
                 },
                 onCalendarClick = {
                     navController.navigate("calendar")
@@ -32,9 +34,11 @@ fun NavPage() {
                 }
             )
         }
+
         composable("calendar") {
             CalendarScreen(onBack = { navController.popBackStack() })
         }
+
         composable("profile") {
             ProfileScreen(onBack = { navController.popBackStack() })
         }
@@ -48,9 +52,9 @@ fun NavPage() {
                 }
             )
         ) { backStackEntry ->
-            val uri = backStackEntry.arguments?.getString("imageUri")
+            val uriEncoded = backStackEntry.arguments?.getString("imageUri")
             ResultScreen(
-                imageUri = uri,
+                imageUri = uriEncoded,
                 onBack = { navController.popBackStack() }
             )
         }
