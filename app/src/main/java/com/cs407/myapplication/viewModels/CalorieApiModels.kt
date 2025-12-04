@@ -24,3 +24,30 @@ data class AnalyzeResponseDto(
     val mode: String,
     val detections: List<DetectionResultDto>
 )
+
+data class DietPlanUserProfileRequest(
+    val height_cm: Double,
+    val weight_kg: Double,
+    val sex: String,
+    val age: Int?,
+    val avg_daily_steps: Int?,
+    val occupation: String,
+    val personality: String?,
+    val sleep_quality: String,
+    val stress_level: String,
+    val vegetarian: Boolean,
+    val vegan: Boolean,
+    val halal: Boolean,
+    val kosher: Boolean,
+    val allergies: List<String>,
+    val dislikes: List<String>,
+    val favorites: List<String>,
+    val usual_meals_per_day: Int
+)
+
+data class DietPlanGenerateRequest(
+    val user_profile: DietPlanUserProfileRequest,
+    val start_date: String,
+    val end_date: String,
+    val goal: String
+)
