@@ -3,10 +3,10 @@ package com.cs407.myapplication.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,10 +17,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(onBack: () -> Unit) {
+fun ProfileScreen(
+    onBack: () -> Unit,
+    onLogout: () -> Unit   // ← 通知 NavPage 跳回 Login
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -38,6 +42,7 @@ fun ProfileScreen(onBack: () -> Unit) {
             )
         }
     ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -45,6 +50,8 @@ fun ProfileScreen(onBack: () -> Unit) {
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
+            // Avatar
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -55,14 +62,15 @@ fun ProfileScreen(onBack: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.AccountCircle,
                     contentDescription = "User Avatar",
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(50.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
             Text(
-                text = "PlaceHolder",
+                text = FirebaseAuth.getInstance().currentUser?.email ?: "User",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -85,6 +93,26 @@ fun ProfileScreen(onBack: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // 🔥 LOGOUT BUTTON
+            Button(
+                onClick = {
+                    FirebaseAuth.getInstance().signOut()
+                    onLogout()   // 通知 NavPage 跳回 Login
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .padding(horizontal = 20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFD32F2F)
+                ),
+                shape = RoundedCornerShape(25.dp)
+            ) {
+                Text("Log Out", color = Color.White, fontSize = 16.sp)
+            }
         }
     }
 }

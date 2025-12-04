@@ -13,9 +13,24 @@ fun NavPage() {
 
     NavHost(
         navController = navController,
-        startDestination = "camera"
+        startDestination = "login"      // ⬅ 登录界面作为入口
     ) {
-        // Camera page
+        // -------------------------
+        // LOGIN
+        // -------------------------
+        composable("login") {
+            LoginScreen(
+                onLoginSuccess = { userId ->
+                    navController.navigate("camera") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // -------------------------
+        // CAMERA
+        // -------------------------
         composable("camera") {
             CameraScreen(
                 onTakePhoto = { uri, model ->
@@ -32,23 +47,49 @@ fun NavPage() {
                 }
             )
         }
+
+        // -------------------------
+        // CALENDAR
+        // -------------------------
         composable("calendar") {
             CalendarScreen(onBack = { navController.popBackStack() })
         }
+
+        // -------------------------
+        // PROFILE
+        // -------------------------
         composable("profile") {
-            ProfileScreen(onBack = { navController.popBackStack() })
+            ProfileScreen(
+                onBack = { navController.popBackStack() },
+
+                onLogout = {
+                    navController.navigate("login") {
+                        popUpTo("camera") { inclusive = true }  // 清空返回栈，防止回退到已登录状态
+                    }
+                }
+            )
         }
 
+        // -------------------------
+        // RESULT (带参数 imageUri + model)
+        // -------------------------
         composable(
-            route = "result?imageUri={imageUri}",
+            route = "result?imageUri={imageUri}&model={model}",
             arguments = listOf(
                 navArgument("imageUri") {
+                    type = NavType.StringType
+                    nullable = true
+                },
+                navArgument("model") {
                     type = NavType.StringType
                     nullable = true
                 }
             )
         ) { backStackEntry ->
+
             val uri = backStackEntry.arguments?.getString("imageUri")
+            val model = backStackEntry.arguments?.getString("model")
+
             ResultScreen(
                 imageUri = uri,
                 onBack = { navController.popBackStack() }

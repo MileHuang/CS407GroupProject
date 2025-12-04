@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "9308718056",
+    "project_id": "calscan-26422",
+    "storage_bucket": "calscan-26422.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9308718056:android:3a9dc6494e026ca6115a5d",
+        "android_client_info": {
+          "package_name": "com.cs407.myapplication"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiHbhlhqFRj-QWJ_D9oC0VPGU3xvyyrDQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
