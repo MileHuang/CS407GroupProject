@@ -18,11 +18,11 @@ fun NavPage() {
         // Camera page
         composable("camera") {
             CameraScreen(
-                onTakePhoto = { imageUri ->
-                    navController.navigate("result?imageUri=$imageUri")
+                onTakePhoto = { uri, model ->
+                    navController.navigate("result?imageUri=$uri&model=$model")
                 },
-                onOpenGallery = { imageUri ->
-                    navController.navigate("result?imageUri=$imageUri")
+                onOpenGallery = { uri, model ->
+                    navController.navigate("result?imageUri=$uri&model=$model")
                 },
                 onCalendarClick = {
                     navController.navigate("calendar")
