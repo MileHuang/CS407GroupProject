@@ -114,6 +114,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
 

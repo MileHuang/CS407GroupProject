@@ -1,4 +1,4 @@
-package com.cs407.myapplication.viewModels
+package com.cs407.myapplication.network
 
 // 只放网络返回的 DTO，和 server.py 对应
 

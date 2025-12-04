@@ -16,10 +16,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cs407.myapplication.network.MealPlanDto
 import com.cs407.myapplication.viewModels.DietPlanViewModel
-import com.cs407.myapplication.viewModels.MealPlanDto
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -262,6 +267,21 @@ private fun MealCard(meal: MealPlanDto) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // ⭐ 如果有图片 URL，就先显示图片
+            if (!meal.imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = meal.imageUrl,
+                    contentDescription = "Meal image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // 然后显示 item_1 ~ item_5
             val items = listOfNotNull(
                 meal.item_1?.takeIf { it.isNotBlank() },
                 meal.item_2?.takeIf { it.isNotBlank() },

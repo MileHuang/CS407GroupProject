@@ -1,4 +1,6 @@
-package com.cs407.myapplication.viewModels
+package com.cs407.myapplication.network
+
+import com.google.gson.annotations.SerializedName
 
 // ---------- Step 1: 活动强度 ----------
 
@@ -53,7 +55,9 @@ data class MealPlanDto(
     val item_2: String? = null,
     val item_3: String? = null,
     val item_4: String? = null,
-    val item_5: String? = null
+    val item_5: String? = null,
+    @SerializedName("image_url")
+    val imageUrl: String?
 )
 
 data class DietPlanDayDto(
