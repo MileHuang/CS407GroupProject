@@ -16,29 +16,67 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import kotlin.math.PI
+import android.os.Build
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.provider.MediaStore
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
+import com.cs407.myapplication.viewModels.CalorieServerViewModel
+
+//////////////////////////////////////////////////////////////
+//                 RESULT SCREEN (SERVER VERSION)
+//////////////////////////////////////////////////////////////
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
+fun ResultScreen(
+    imageUri: String?,
+    onBack: () -> Unit,
+    viewModel: CalorieServerViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // 当图片加载时触发服务器调用
+    LaunchedEffect(imageUri) {
+        imageUri?.let {
+            val uri = Uri.parse(Uri.decode(it))
+            val bmp = loadBitmapFromUri(context, uri)
+            if (bmp != null) viewModel.analyze(bmp)
+        }
+    }
 
     var selectedModel by remember { mutableStateOf("Food Calorie Model") }
     var modelMenuExpanded by remember { mutableStateOf(false) }
 
-    // ---------------------------
-    // Mock demo values (replace with backend data)
-    // ---------------------------
-    val food = "hamburger"
-    val calories = 441.6
-    val mass = 220.8
-    val protein = 16.6
-    val fat = 14.7
-    val carbs = 60.7
-    val recommended = 2000.0  // Placeholder
+    // 从服务器取第一项
+    val det = uiState.detections.firstOrNull()
+
+    val food = det?.label ?: "Detecting..."
+    val calories = det?.caloriesKcal ?: 0.0
+    val mass = det?.massGrams ?: 0.0
+    val protein = det?.proteinGrams ?: 0.0
+    val fat = det?.fatGrams ?: 0.0
+    val carbs = det?.carbGrams ?: 0.0
+    val recommended = 2000.0
 
     Scaffold(
         topBar = {
@@ -59,19 +97,16 @@ fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
                             expanded = modelMenuExpanded,
                             onDismissRequest = { modelMenuExpanded = false }
                         ) {
-                            listOf(
-                                "Food Calorie Model",
-                                "Nutrition Model",
-                                "Fitness Model"
-                            ).forEach { model ->
-                                DropdownMenuItem(
-                                    text = { Text(model) },
-                                    onClick = {
-                                        selectedModel = model
-                                        modelMenuExpanded = false
-                                    }
-                                )
-                            }
+                            listOf("Food Calorie Model", "Nutrition Model", "Fitness Model")
+                                .forEach { model ->
+                                    DropdownMenuItem(
+                                        text = { Text(model) },
+                                        onClick = {
+                                            selectedModel = model
+                                            modelMenuExpanded = false
+                                        }
+                                    )
+                                }
                         }
                     }
                 },
@@ -89,17 +124,18 @@ fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
+            //------------------------------
+            // IMAGE LEFT + FOOD LABEL RIGHT
+            //------------------------------
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Image on the LEFT
                 if (imageUri != null) {
                     Image(
                         painter = rememberAsyncImagePainter(Uri.parse(imageUri)),
-                        contentDescription = "Selected Image",
+                        contentDescription = null,
                         modifier = Modifier
                             .size(150.dp)
                             .clip(RoundedCornerShape(16.dp)),
@@ -109,15 +145,11 @@ fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
 
                 Spacer(modifier = Modifier.width(20.dp))
 
-                // Food label on RIGHT — big and obvious
-                Column(
-                    horizontalAlignment = Alignment.Start
-                ) {
+                Column(horizontalAlignment = Alignment.Start) {
                     Text(
                         text = food.uppercase(),
                         fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = selectedModel,
@@ -129,7 +161,24 @@ fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // ========= TABLE ==========
+            //------------------------------
+            // SHOW SERVER ERROR / LOADING
+            //------------------------------
+
+            if (uiState.isLoading) {
+                CircularProgressIndicator()
+                return@Column
+            }
+
+            uiState.errorMessage?.let {
+                Text("Error: $it", color = Color.Red)
+                return@Column
+            }
+
+            //------------------------------
+            //   TABLE WITH SERVER DATA
+            //------------------------------
+
             InfoTable(
                 food = food,
                 calories = calories,
@@ -142,7 +191,10 @@ fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ========= DONUT CHART ==========
+            //------------------------------
+            //   DONUT CHART WITH SERVER DATA
+            //------------------------------
+
             DonutChart(
                 protein = protein,
                 fat = fat,
@@ -151,6 +203,23 @@ fun ResultScreen(imageUri: String?, onBack: () -> Unit) {
                 recommendedCalories = recommended
             )
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////
+//                 BITMAP LOADER
+//////////////////////////////////////////////////////////////
+
+fun loadBitmapFromUri(context: android.content.Context, uri: Uri): Bitmap? {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+        } else {
+            @Suppress("DEPRECATION")
+            MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+        }
+    } catch (e: Exception) {
+        null
     }
 }
 
