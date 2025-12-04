@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -41,24 +40,35 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CameraScreen(
-    onTakePhoto: (String) -> Unit = {},
-    onOpenGallery: (String) -> Unit = {},
+    // Pass both imageUri and selected model type to the Result page
+    onTakePhoto: (String, String) -> Unit = { _, _ -> },
+    onOpenGallery: (String, String) -> Unit = { _, _ -> },
     onCalendarClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
-    var expandedTop by remember { mutableStateOf(false) }
-    var expandedBottom by remember { mutableStateOf(false) }
+    // Available model pipeline modes
+    val modelOptions = listOf("pipe1", "pipe2")
+
+    // Current selected model (default = pipe1)
+    var selectedModel by remember { mutableStateOf("pipe1") }
+    var modelMenuExpanded by remember { mutableStateOf(false) }
+
+    // Menu dropdown for Calendar / Profile
+    var dropdownExpanded by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val lifecycleOwner = context as LifecycleOwner
-    var dropdownExpanded by remember { mutableStateOf(false) }
+
+    // ImageCapture instance for taking photos
     val imageCapture = remember { ImageCapture.Builder().build() }
+
+    // Gallery picker callback — forwards (imageUri + modelType)
     val photoPickerLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia()
         ) { uri ->
             uri?.let {
-                onOpenGallery(it.toString())  //  Pass URI to navigation
+                onOpenGallery(it.toString(), selectedModel)
             }
         }
 
@@ -66,6 +76,8 @@ fun CameraScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Camera") },
+
+                // Left navigation: menu with Calendar + Profile
                 navigationIcon = {
                     Box {
                         IconButton(onClick = { dropdownExpanded = !dropdownExpanded }) {
@@ -77,9 +89,7 @@ fun CameraScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Calendar") },
-                                leadingIcon = {
-                                    Icon(Icons.Default.DateRange, contentDescription = null)
-                                },
+                                leadingIcon = { Icon(Icons.Default.DateRange, null) },
                                 onClick = {
                                     dropdownExpanded = false
                                     onCalendarClick()
@@ -87,9 +97,7 @@ fun CameraScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text("Profile") },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Person, contentDescription = null)
-                                },
+                                leadingIcon = { Icon(Icons.Default.Person, null) },
                                 onClick = {
                                     dropdownExpanded = false
                                     onProfileClick()
@@ -98,11 +106,46 @@ fun CameraScreen(
                         }
                     }
                 },
+
+                // Right-side actions: Model switcher + Profile icon
                 actions = {
+                    // ▼ Model selection dropdown (pipe1 / pipe2)
+                    Box {
+                        TextButton(onClick = { modelMenuExpanded = true }) {
+                            Text(
+                                text = if (selectedModel == "pipe1")
+                                    "Calorie Model"
+                                else
+                                    "Food-101 Model"
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = modelMenuExpanded,
+                            onDismissRequest = { modelMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Calorie Model (pipe1)") },
+                                onClick = {
+                                    selectedModel = "pipe1"
+                                    modelMenuExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Food-101 Model (pipe2)") },
+                                onClick = {
+                                    selectedModel = "pipe2"
+                                    modelMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                    // ▲ End model selection UI
+
                     IconButton(onClick = { onProfileClick() }) {
                         Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                     }
                 },
+
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFB3E5FC),
                     titleContentColor = Color.Black,
@@ -116,28 +159,25 @@ fun CameraScreen(
                 modifier = Modifier.height(70.dp),
                 containerColor = Color(0xFFB3E5FC),
                 tonalElevation = 8.dp,
-
-
             ) {
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 40.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = 40.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+
+                    // Take a photo → Navigate to Result with selectedModel
                     IconButton(
                         onClick = {
-                        takePhoto(context, imageCapture, onTakePhoto)
-                        }) {
-                        Icon(
-                            Icons.Default.PhotoCamera,
-                            contentDescription = "Take Picture",
-                            modifier = Modifier.size(32.dp)
-                        )
+                            takePhoto(context, imageCapture) { uri ->
+                                onTakePhoto(uri, selectedModel)
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, "Take Photo", Modifier.size(32.dp))
                     }
 
-                    // Open Gallery button
+                    // Open gallery → Navigate with selectedModel
                     IconButton(
                         onClick = {
                             photoPickerLauncher.launch(
@@ -145,11 +185,7 @@ fun CameraScreen(
                             )
                         }
                     ) {
-                        Icon(
-                            Icons.Default.PhotoLibrary,
-                            contentDescription = "Open Gallery",
-                            modifier = Modifier.size(32.dp)
-                        )
+                        Icon(Icons.Default.PhotoLibrary, "Open Gallery", Modifier.size(32.dp))
                     }
                 }
             }
@@ -157,20 +193,18 @@ fun CameraScreen(
 
         content = { padding ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize().padding(padding)
             ) {
+                // Camera preview using AndroidView + CameraX PreviewView
                 AndroidView(
                     factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        if (ContextCompat.checkSelfPermission(
-                                ctx,
-                                Manifest.permission.CAMERA
-                            ) == PackageManager.PERMISSION_GRANTED
+                        val preview = PreviewView(ctx)
+
+                        // Check camera permission
+                        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA)
+                            == PackageManager.PERMISSION_GRANTED
                         ) {
-                            startCamera(ctx, lifecycleOwner, previewView, imageCapture)
+                            startCamera(ctx, lifecycleOwner, preview, imageCapture)
                         } else {
                             ActivityCompat.requestPermissions(
                                 ctx as ComponentActivity,
@@ -178,7 +212,7 @@ fun CameraScreen(
                                 1001
                             )
                         }
-                        previewView
+                        preview
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -187,6 +221,7 @@ fun CameraScreen(
     )
 }
 
+/** Bind CameraX (Preview + ImageCapture) to the lifecycle */
 private fun startCamera(
     context: android.content.Context,
     lifecycleOwner: LifecycleOwner,
@@ -196,6 +231,7 @@ private fun startCamera(
     val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
     cameraProviderFuture.addListener({
         val cameraProvider = cameraProviderFuture.get()
+
         val preview = Preview.Builder().build().apply {
             setSurfaceProvider(previewView.surfaceProvider)
         }
@@ -216,7 +252,7 @@ private fun startCamera(
     }, ContextCompat.getMainExecutor(context))
 }
 
-
+/** Take a photo using CameraX ImageCapture API */
 private fun takePhoto(
     context: android.content.Context,
     imageCapture: ImageCapture,
@@ -224,6 +260,7 @@ private fun takePhoto(
 ) {
     val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
         .format(System.currentTimeMillis())
+
     val contentValues = ContentValues().apply {
         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
         put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
