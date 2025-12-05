@@ -55,7 +55,7 @@ fun ResultScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // 当图片加载时触发服务器调用
+    // Serve loading
     LaunchedEffect(imageUri) {
         imageUri?.let {
             val uri = Uri.parse(Uri.decode(it))
@@ -67,7 +67,6 @@ fun ResultScreen(
     var selectedModel by remember { mutableStateOf("Food Calorie Model") }
     var modelMenuExpanded by remember { mutableStateOf(false) }
 
-    // 从服务器取第一项
     val det = uiState.detections.firstOrNull()
 
     val food = det?.label ?: "Detecting..."
