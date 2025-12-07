@@ -2,29 +2,32 @@ package com.cs407.myapplication.ui
 
 import android.widget.CalendarView
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.cs407.myapplication.network.MealPlanDto
 import com.cs407.myapplication.viewModels.DietPlanViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
+
+// 和服务器保持一致：Android 模拟器访问 PC 本机要用 10.0.2.2
+private const val SERVER_BASE = "http://10.0.2.2:8000"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,8 +42,10 @@ fun CalendarScreen(
     var hasChosenStart by remember { mutableStateOf(false) }
     var startDateForPlan by remember { mutableStateOf<LocalDate?>(null) }
 
-    // 当前选中日期的餐食列表（用你说的组合结构）
+    // 当天的 meals
     var mealsForSelectedDay by remember { mutableStateOf<List<MealPlanDto>?>(null) }
+    // 当天的大图（服务器生成的一张拼图）
+    var dayImageUrl by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -95,8 +100,9 @@ fun CalendarScreen(
                         val date = LocalDate.of(year, month + 1, day)
                         selectedLocalDate = date
                         selectedDateText = date.toString()
-                        // 切日期时先清空旧的 meals
+                        // 切日期时清空旧数据
                         mealsForSelectedDay = null
+                        dayImageUrl = null
                     }
                 },
                 modifier = Modifier
@@ -106,7 +112,7 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Button 1：重新生成饮食计划（设置开始日期）
+            // Button 1：设置开始日期（用于重新生成计划）
             Button(
                 onClick = {
                     val date = selectedLocalDate
@@ -138,7 +144,7 @@ fun CalendarScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Button 2：查看当日 / 确认结束日期并生成
+            // Button 2：查看某一天 / 选择结束日期并生成
             Button(
                 onClick = {
                     val date = selectedLocalDate
@@ -152,24 +158,17 @@ fun CalendarScreen(
                     }
 
                     if (!hasChosenStart) {
-                        // 查看当日饮食计划，并把结果存到 mealsForSelectedDay
                         val meals = viewModel.loadMealsForDate(date)
                         mealsForSelectedDay = meals
-                        if (meals == null) {
-                            Toast.makeText(
-                                context,
-                                "No diet plan for $date",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Found ${meals.size} meals for $date",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+
+                        val firstUrl = meals?.firstOrNull()?.image_url
+                        Toast.makeText(
+                            context,
+                            "Found ${meals?.size ?: 0} meals, firstUrl=$firstUrl",
+                            Toast.LENGTH_LONG
+                        ).show()
                     } else {
-                        // 确认结束日期 + 调用生成接口
+                        // 生成计划：确定结束日期
                         val start = startDateForPlan
                         if (start == null) {
                             Toast.makeText(
@@ -184,6 +183,9 @@ fun CalendarScreen(
                             if (start <= date) start to date else date to start
 
                         isGenerating = true
+                        mealsForSelectedDay = null
+                        dayImageUrl = null
+
                         scope.launch {
                             viewModel.requestAndCachePlanForRange(
                                 start = startFinal,
@@ -225,7 +227,6 @@ fun CalendarScreen(
                 CircularProgressIndicator()
             }
 
-            // ---------- 用组合打印出食物列表 ----------
             mealsForSelectedDay?.let { meals ->
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -233,6 +234,24 @@ fun CalendarScreen(
                     text = "Meals for $selectedDateText",
                     style = MaterialTheme.typography.titleMedium
                 )
+
+                // 先显示当天总览图（如果有）
+                dayImageUrl?.let { rel ->
+                    val fullUrl =
+                        if (rel.startsWith("http")) rel else SERVER_BASE + rel
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    AsyncImage(
+                        model = fullUrl,
+                        contentDescription = "Day overview image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -267,10 +286,14 @@ private fun MealCard(meal: MealPlanDto) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // ⭐ 如果有图片 URL，就先显示图片
-            if (!meal.imageUrl.isNullOrBlank()) {
+            // 如果以后 meal 也有单独图片，这里顺便支持
+            val url = meal.image_url
+            if (!url.isNullOrBlank()) {
+                val fullUrl =
+                    if (url.startsWith("http")) url else SERVER_BASE + url
+
                 AsyncImage(
-                    model = meal.imageUrl,
+                    model = fullUrl,
                     contentDescription = "Meal image",
                     modifier = Modifier
                         .fillMaxWidth()
@@ -281,7 +304,6 @@ private fun MealCard(meal: MealPlanDto) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // 然后显示 item_1 ~ item_5
             val items = listOfNotNull(
                 meal.item_1?.takeIf { it.isNotBlank() },
                 meal.item_2?.takeIf { it.isNotBlank() },

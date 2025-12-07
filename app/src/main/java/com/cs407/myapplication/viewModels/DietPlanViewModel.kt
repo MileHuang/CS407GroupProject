@@ -71,6 +71,10 @@ class DietPlanViewModel : ViewModel() {
     var cachedPlan: DietPlanResponseDto? = null
         private set
 
+    // ⭐ 当前选中日期对应的“整天图片 URL”
+    var selectedDayImageUrl: String? = null
+        private set
+
     var selectedDayMeals: List<MealPlanDto>? = null
         private set
 
@@ -106,6 +110,7 @@ class DietPlanViewModel : ViewModel() {
             dayMap[d.date] = d
         }
         for (d in newPlan.days) {
+            // 新计划覆盖旧计划
             dayMap[d.date] = d
         }
 
@@ -183,6 +188,7 @@ class DietPlanViewModel : ViewModel() {
 
         if (plan == null) {
             selectedDayMeals = null
+            selectedDayImageUrl = null
             return null
         }
 
@@ -191,10 +197,13 @@ class DietPlanViewModel : ViewModel() {
 
         if (day == null) {
             selectedDayMeals = null
+            selectedDayImageUrl = null
             return null
         }
 
         selectedDayMeals = day.meals
+        // ⭐ 把该天的图片 URL 存起来给 UI 用
+        selectedDayImageUrl = day.day_image_url    // 注意下面 DTO 里要有 dayImageUrl
         return day.meals
     }
 
