@@ -204,20 +204,31 @@ fun ResultScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
-                MealPercentDonut(
-                    mealCalories = calories,
-                    dailyGoal = recommended
-                )
+                Box(
+                    modifier = Modifier
+                        .height(250.dp),     // 给两个图相同高度
+                    contentAlignment = Alignment.Center
+                ) {
+                    MealPercentDonut(
+                        mealCalories = calories,
+                        dailyGoal = recommended
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                MacroDonut(
-                    protein = protein,
-                    fat = fat,
-                    carbs = carbs
-                )
+                Box(
+                    modifier = Modifier
+                        .height(250.dp),     // 同样高度
+                    contentAlignment = Alignment.Center
+                ) {
+                    MacroDonut(
+                        protein = protein,
+                        fat = fat,
+                        carbs = carbs
+                    )
+                }
             }
-
         }
     }
 }
@@ -302,12 +313,14 @@ fun MealPercentDonut(
     mealCalories: Double,
     dailyGoal: Double
 ) {
-    val percent = (mealCalories / dailyGoal)
-        .coerceIn(0.0, 1.0)
-
+    val percent = (mealCalories / dailyGoal).coerceIn(0.0, 1.0)
     val sweepAngle = (percent * 360f).toFloat()
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier.height(250.dp),   // 🔥 强制相同高度
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween  // 🔥 上下平分对齐
+    ) {
 
         Box(contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.size(150.dp)) {
@@ -318,9 +331,8 @@ fun MealPercentDonut(
                     useCenter = false,
                     style = Stroke(width = 22f)
                 )
-
                 drawArc(
-                    color = Color(0xFF4FC3F7), // 蓝色更清爽
+                    color = Color(0xFF4FC3F7),
                     startAngle = -90f,
                     sweepAngle = sweepAngle,
                     useCenter = false,
@@ -338,10 +350,10 @@ fun MealPercentDonut(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
         Text("Meal % Goal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
 }
+
 @Composable
 fun MacroDonut(
     protein: Double,
@@ -351,7 +363,6 @@ fun MacroDonut(
     val proteinKcal = protein * 4
     val fatKcal = fat * 9
     val carbKcal = carbs * 4
-
     val total = (proteinKcal + fatKcal + carbKcal).takeIf { it > 0 } ?: 1.0
 
     val segments = listOf(
@@ -360,16 +371,17 @@ fun MacroDonut(
         Triple("Fat",     fatKcal,     Color(0xFFFF8A65))
     )
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier.height(250.dp),   // 🔥 一样高度
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween  // 🔥 自动上下均分，看起来等高
+    ) {
 
         Box(contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.size(150.dp)) {
-
                 var startAngle = -90f
-
                 segments.forEach { (_, value, color) ->
                     val sweep = (value / total * 360f).toFloat()
-
                     drawArc(
                         color = color,
                         startAngle = startAngle,
@@ -377,36 +389,28 @@ fun MacroDonut(
                         useCenter = false,
                         style = Stroke(width = 22f)
                     )
-
                     startAngle += sweep
                 }
             }
 
-            Text(
-                "Macros",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text("Macros", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // ---------- LEGENDS ----------
-        segments.forEach { (label, value, color) ->
-            val percent = value / total * 100
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(color)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("$label: ${percent.toInt()}%", fontSize = 13.sp)
+        Column(horizontalAlignment = Alignment.Start) {
+            segments.forEach { (label, value, color) ->
+                val percent = value / total * 100
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(color)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("$label: ${percent.toInt()}%", fontSize = 13.sp)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
             }
-            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }

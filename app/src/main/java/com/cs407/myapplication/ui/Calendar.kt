@@ -177,7 +177,12 @@ fun CalendarScreen(
             }
 
             if (generating) {
-                CircularProgressIndicator()
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
                 Spacer(Modifier.height(12.dp))
             }
 
