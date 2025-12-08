@@ -61,18 +61,22 @@ fun NavPage() {
         composable("profile") {
             ProfileScreen(
                 onBack = { navController.popBackStack() },
-
                 onLogout = {
-                    // 🔥 真正登出 Firebase
-                    FirebaseAuth.getInstance().signOut()
-
-                    // 🔥 跳回登录页并清除返回栈
                     navController.navigate("login") {
                         popUpTo("camera") { inclusive = true }
                     }
-                }
+                },
+                onEditProfile = { navController.navigate("edit_profile") }
             )
         }
+
+        composable("edit_profile") {
+            EditProfileScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+
 
         // -------------------------
         // RESULT PAGE

@@ -1,11 +1,13 @@
-package com.cs407.myapplication.viewModels
+package com.cs407.myapplication.network
 
-import com.cs407.myapplication.viewModels.DietPlanApiService
-import com.cs407.myapplication.viewModels.ActivityEstimationRequestDto
-import com.cs407.myapplication.viewModels.ActivityEstimationResponseDto
-import com.cs407.myapplication.viewModels.DietPlanRequestDto
-import com.cs407.myapplication.viewModels.DietPlanResponseDto
-import com.cs407.myapplication.viewModels.DietPreferenceDto
+import com.cs407.myapplication.network.DietPlanApiService
+import com.cs407.myapplication.network.ActivityEstimationRequestDto
+import com.cs407.myapplication.network.ActivityEstimationResponseDto
+import com.cs407.myapplication.network.DietPlanRequestDto
+import com.cs407.myapplication.network.DietPlanResponseDto
+import com.cs407.myapplication.network.DietPreferenceDto
+import com.cs407.myapplication.viewModels.DietPlanRepository
+import com.cs407.myapplication.viewModels.UserProfile
 import java.time.LocalDate
 
 /**

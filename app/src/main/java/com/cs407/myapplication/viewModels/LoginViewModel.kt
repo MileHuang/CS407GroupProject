@@ -1,11 +1,9 @@
-package com.cs407.myapplication.ui
+package com.cs407.myapplication.viewModels
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 
 data class LoginUiState(
     val email: String = "",

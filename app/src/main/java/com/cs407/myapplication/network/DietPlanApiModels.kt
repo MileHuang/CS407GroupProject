@@ -1,4 +1,6 @@
-package com.cs407.myapplication.viewModels
+package com.cs407.myapplication.network
+
+import com.google.gson.annotations.SerializedName
 
 // ---------- Step 1: 活动强度 ----------
 
@@ -47,31 +49,26 @@ data class DietPreferenceDto(
     val usual_meals_per_day: Int = 3
 )
 
+// 你原来的大概长这样
 data class MealPlanDto(
-    val type: String,                 // "breakfast", "lunch", "dinner", "snack"
-    val item_1: String? = null,
-    val item_2: String? = null,
-    val item_3: String? = null,
-    val item_4: String? = null,
-    val item_5: String? = null
+    val type: String,
+    val item_1: String?,
+    val item_2: String?,
+    val item_3: String?,
+    val item_4: String?,
+    val item_5: String?,
+    // 可以保留 meal 级别的 imageUrl，将来想一餐一图的时候可用，现在会是 null
+    val image_url: String? = null
 )
 
 data class DietPlanDayDto(
-    val date: String,                 // "YYYY-MM-DD"
+    val date: String,
     val calories_kcal: Double,
     val protein_g: Double,
     val fat_g: Double,
     val carb_g: Double,
-    val meals: List<MealPlanDto>
-)
-
-data class DietPlanRequestDto(
-    val activity_profile: ActivityEstimationResponseDto,
-    val start_date: String,           // LocalDate.toString()
-    val end_date: String,
-    val goal: String,                 // e.g. "fat loss", "muscle gain"
-    val goal_description: String? = null,
-    val diet_preference: DietPreferenceDto
+    val meals: List<MealPlanDto>,
+    val day_image_url: String? = null
 )
 
 data class DietPlanResponseDto(
@@ -83,4 +80,14 @@ data class DietPlanResponseDto(
     val tdee_kcal: Double?,
     val summary: String,
     val days: List<DietPlanDayDto>
+)
+
+
+data class DietPlanRequestDto(
+    val activity_profile: ActivityEstimationResponseDto,
+    val start_date: String,           // LocalDate.toString()
+    val end_date: String,
+    val goal: String,                 // e.g. "fat loss", "muscle gain"
+    val goal_description: String? = null,
+    val diet_preference: DietPreferenceDto
 )

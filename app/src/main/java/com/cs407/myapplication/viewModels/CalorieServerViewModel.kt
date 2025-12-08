@@ -3,6 +3,8 @@ package com.cs407.myapplication.viewModels
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cs407.myapplication.network.CalorieApi
+import com.cs407.myapplication.network.CalorieApiClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update

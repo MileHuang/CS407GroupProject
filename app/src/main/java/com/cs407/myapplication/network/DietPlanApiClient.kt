@@ -1,6 +1,6 @@
 package com.cs407.myapplication.network
 
-import com.cs407.myapplication.viewModels.DietPlanApiService
+import com.cs407.myapplication.network.DietPlanApiService
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory

@@ -1,4 +1,4 @@
-package com.cs407.myapplication.ui
+package com.cs407.myapplication.viewModels
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit

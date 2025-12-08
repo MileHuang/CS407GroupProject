@@ -1,4 +1,4 @@
-package com.cs407.myapplication.viewModels
+package com.cs407.myapplication.network
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory

@@ -3,25 +3,32 @@ package com.cs407.myapplication.ui
 import android.widget.CalendarView
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.cs407.myapplication.network.MealPlanDto
 import com.cs407.myapplication.viewModels.DietPlanViewModel
-import com.cs407.myapplication.viewModels.MealPlanDto
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+
+private const val SERVER_BASE = "http://10.0.2.2:8000"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,18 +36,22 @@ fun CalendarScreen(
     onBack: () -> Unit,
     viewModel: DietPlanViewModel = viewModel()
 ) {
-    val context = LocalContext.current
+    val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var selectedLocalDate by remember { mutableStateOf<LocalDate?>(null) }
-    var selectedDateText by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
+    var selectedText by remember { mutableStateOf("") }
 
-    var isExpanded by remember { mutableStateOf(false) }   // 只有 View 按钮控制
-    var hasChosenStart by remember { mutableStateOf(false) }
-    var startDateForPlan by remember { mutableStateOf<LocalDate?>(null) }
+    var meals by remember { mutableStateOf<List<MealPlanDto>?>(null) }
 
-    var isGenerating by remember { mutableStateOf(false) }
-    var mealsForSelectedDay by remember { mutableStateOf<List<MealPlanDto>?>(null) }
+    // ⭐ 日历是否展开
+    var calendarExpanded by remember { mutableStateOf(true) }
+
+    // ⭐ Generate 模式变量
+    var generating by remember { mutableStateOf(false) }
+    var startDate by remember { mutableStateOf<LocalDate?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.initIfNeeded(ctx) }
 
     Scaffold(
         topBar = {
@@ -48,194 +59,137 @@ fun CalendarScreen(
                 title = { Text("Calendar") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = null)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFB3E5FC),
-                    titleContentColor = Color.Black,
-                    navigationIconContentColor = Color.Black
-                )
+                }
             )
         }
     ) { padding ->
+
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
         ) {
 
-            // 顶部选中日期提示（不再有手动 toggle）
-            Text(
-                text = if (selectedDateText.isEmpty()) "Select a date"
-                else "Selected: $selectedDateText",
-                style = MaterialTheme.typography.titleMedium
-            )
+            // -------- 折叠时的一行显示 --------
+            if (!calendarExpanded) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 2.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { calendarExpanded = true }
+                        .padding(bottom = 12.dp)
+                ) {
+                    Row(
+                        Modifier.padding(12.dp).fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Selected: $selectedText")
+                        Text("Change ▾", color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 只有 isExpanded == true 时才显示日历
-            AnimatedVisibility(visible = isExpanded) {
+            // -------- 日历本体 --------
+            AnimatedVisibility(visible = calendarExpanded) {
                 AndroidView(
-                    factory = { CalendarView(context) },
-                    update = { view ->
-                        view.setOnDateChangeListener { _, year, month, day ->
-                            val date = LocalDate.of(year, month + 1, day)
-                            selectedLocalDate = date
-                            selectedDateText = date.toString()
-                            mealsForSelectedDay = null
+                    factory = { CalendarView(ctx) },
+                    update = { calendar ->
+                        calendar.setOnDateChangeListener { _, y, m, d ->
+                            val date = LocalDate.of(y, m + 1, d)
+                            selectedDate = date
+                            selectedText = date.toString()
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(340.dp)
+                    modifier = Modifier.fillMaxWidth().height(350.dp)
                 )
             }
 
-            if (isExpanded) {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            Spacer(Modifier.height(16.dp))
 
-            // Button 1：设置 start date（不控制日历显隐）
-            Button(
-                onClick = {
-                    val date = selectedLocalDate
-                    if (date == null) {
-                        Toast.makeText(
-                            context,
-                            "Tap \"View Diet Plan\" to choose a date first",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        return@Button
-                    }
-                    startDateForPlan = date
-                    hasChosenStart = true
-                    Toast.makeText(
-                        context,
-                        "Start date set to $date",
-                        Toast.LENGTH_SHORT
-                    ).show()
+            // =======================
+            // ⭐ 按钮逻辑部分
+            // =======================
+            if (calendarExpanded) {
+
+                // ⭐ 不是 generate 模式时显示“View + Generate”
+                if (startDate == null) {
+
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            val date = selectedDate ?: return@Button Toast
+                                .makeText(ctx, "Please select a date", Toast.LENGTH_SHORT).show()
+
+                            meals = viewModel.loadMealsForDate(date)
+                            calendarExpanded = false   // 收起日历
+                        }
+                    ) { Text("View Diet Plan for Selected Day") }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            val date = selectedDate ?: return@Button Toast
+                                .makeText(ctx, "Please select a date", Toast.LENGTH_SHORT).show()
+
+                            startDate = date
+                            Toast.makeText(ctx, "Start date selected: $date\nSelect end date", Toast.LENGTH_LONG).show()
+                        }
+                    ) { Text("Generate Diet Plan") }
+
+                } else {
+                    // ⭐ startDate != null → 第二步确认 End Date
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            val end = selectedDate ?: return@Button Toast
+                                .makeText(ctx, "Please select end date", Toast.LENGTH_SHORT)
+                                .show()
+
+                            val s = startDate!!
+                            val (startFinal, endFinal) =
+                                if (s <= end) s to end else end to s
+
+                            generating = true
+
+                            scope.launch {
+                                viewModel.requestAndCachePlanForRange(
+                                    startFinal, endFinal,
+                                    onSuccess = {
+                                        generating = false
+                                        startDate = null
+                                        Toast.makeText(ctx, "Plan Generated!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onError = {
+                                        generating = false
+                                        startDate = null
+                                        Toast.makeText(ctx, "Error: ${it.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            }
+                        }
+                    ) { Text("Confirm End Date & Generate") }
                 }
-            ) {
-                Text(
-                    text = if (!hasChosenStart) "Regenerate Diet Plan"
-                    else "Start Date: ${startDateForPlan ?: ""}"
-                )
+
+                Spacer(Modifier.height(16.dp))
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Button 2：既负责“弹出日历”，又负责 view / generate
-            Button(
-                onClick = {
-                    // 1️⃣ 若日历当前是收起的 → 只展开，不做别的
-                    if (!isExpanded) {
-                        isExpanded = true
-                        return@Button
-                    }
-
-                    // 2️⃣ 日历已经展开，要求一定先选日期
-                    val date = selectedLocalDate
-                    if (date == null) {
-                        Toast.makeText(
-                            context,
-                            "Please tap on a date in the calendar",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        return@Button
-                    }
-
-                    if (!hasChosenStart) {
-                        // 3️⃣ 仅查看当天计划：加载 + 收回日历
-                        val meals = viewModel.loadMealsForDate(date)
-                        mealsForSelectedDay = meals
-                        if (meals == null) {
-                            Toast.makeText(
-                                context,
-                                "No diet plan for $date",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                        // 查看完就收起日历
-                        isExpanded = false
-                    } else {
-                        // 4️⃣ 已有 start，这次把 date 当作 end 来生成区间
-                        val start = startDateForPlan
-                        if (start == null) {
-                            Toast.makeText(
-                                context,
-                                "Start date not set",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            return@Button
-                        }
-
-                        val (startFinal, endFinal) =
-                            if (start <= date) start to date else date to start
-
-                        isGenerating = true
-                        scope.launch {
-                            viewModel.requestAndCachePlanForRange(
-                                start = startFinal,
-                                end = endFinal,
-                                onError = { e ->
-                                    isGenerating = false
-                                    hasChosenStart = false
-                                    Toast.makeText(
-                                        context,
-                                        "Error: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                },
-                                onSuccess = {
-                                    isGenerating = false
-                                    hasChosenStart = false
-                                    // ✅ 生成成功后收起日历
-                                    isExpanded = false
-                                    Toast.makeText(
-                                        context,
-                                        "Finish: plan from $startFinal to $endFinal",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            )
-                        }
-                    }
-                }
-            ) {
-                Text(
-                    text = if (!hasChosenStart)
-                        "View Diet Plan for Selected Day"
-                    else
-                        "Confirm End Date & Generate"
-                )
-            }
-
-            if (isGenerating) {
-                Spacer(modifier = Modifier.height(16.dp))
+            if (generating) {
                 CircularProgressIndicator()
+                Spacer(Modifier.height(12.dp))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // =====================
+            // ⭐ Meals 显示
+            // =====================
+            meals?.let { list ->
+                Text("Meals for $selectedText", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
 
-            mealsForSelectedDay?.let { meals ->
-                Text(
-                    text = "Meals for $selectedDateText",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(meals) { meal ->
-                        MealCard(meal)
-                    }
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(list) { MealCard(it) }
                 }
             }
         }
@@ -243,35 +197,48 @@ fun CalendarScreen(
 }
 
 
-
-
 @Composable
-private fun MealCard(meal: MealPlanDto) {
+fun MealCard(meal: MealPlanDto) {
+    val bg = when (meal.type.lowercase()) {
+        "breakfast" -> Color(0xFFFFF3CD)
+        "lunch" -> Color(0xFFE1F5FE)
+        "dinner" -> Color(0xFFE8F5E9)
+        else -> Color(0xFFF5F5F5)
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = bg),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
+        Column(Modifier.padding(16.dp)) {
+
             Text(
-                text = meal.type.replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.titleMedium
+                meal.type.replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(Modifier.height(12.dp))
+
+            meal.image_url?.takeIf { it.isNotBlank() }?.let { img ->
+                AsyncImage(
+                    model = if (img.startsWith("http")) img else SERVER_BASE + img,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.height(12.dp))
+            }
 
             val items = listOfNotNull(
-                meal.item_1?.takeIf { it.isNotBlank() },
-                meal.item_2?.takeIf { it.isNotBlank() },
-                meal.item_3?.takeIf { it.isNotBlank() },
-                meal.item_4?.takeIf { it.isNotBlank() },
-                meal.item_5?.takeIf { it.isNotBlank() }
-            )
+                meal.item_1, meal.item_2, meal.item_3, meal.item_4, meal.item_5
+            ).filter { it.isNotBlank() }
 
-            items.forEachIndexed { index, text ->
-                Text("• ${text}")
+            items.forEach {
+                Text("• $it", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

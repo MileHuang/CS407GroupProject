@@ -5,6 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cs407.myapplication.data.FirebaseProfileRepository
 import com.cs407.myapplication.network.DietPlanApiClient
+import com.cs407.myapplication.network.DietPlanDayDto
+import com.cs407.myapplication.network.DietPlanResponseDto
+import com.cs407.myapplication.network.MealPlanDto
+import com.cs407.myapplication.network.NetworkDietPlanRepository
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.CoroutineDispatcher

@@ -28,6 +28,7 @@ import android.graphics.ImageDecoder
 import android.provider.MediaStore
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -195,13 +196,28 @@ fun ResultScreen(
             //   DONUT CHART WITH SERVER DATA
             //------------------------------
 
-            DonutChart(
-                protein = protein,
-                fat = fat,
-                carbs = carbs,
-                totalCalories = calories,
-                recommendedCalories = recommended
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                MealPercentDonut(
+                    mealCalories = calories,
+                    dailyGoal = recommended
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                MacroDonut(
+                    protein = protein,
+                    fat = fat,
+                    carbs = carbs
+                )
+            }
+
         }
     }
 }
@@ -237,47 +253,43 @@ fun InfoTable(
     carbs: Double,
     recommend: Double
 ) {
-    val recProtein = 120  // placeholder
-    val recFat = 70
-    val recCarb = 260
-    val recCalories = 2000 // NEW 🔥
-
     val rows = listOf(
-        Triple("Food", food, ""),
-        Triple("Calories", "%.1f kcal".format(calories), "$recCalories kcal"),
-        Triple("Mass", "%.1f g".format(mass), ""),
-        Triple("Protein", "%.1f g".format(protein), "${recProtein} g"),
-        Triple("Fat", "%.1f g".format(fat), "${recFat} g"),
-        Triple("Carbs", "%.1f g".format(carbs), "${recCarb} g"),
-        Triple("Remaining", "%.1f kcal".format(recommend - calories), "")
+        "Food" to food,
+        "Calories" to "%.1f kcal".format(calories),
+        "Mass" to "%.1f g".format(mass),
+        "Protein" to "%.1f g".format(protein),
+        "Fat" to "%.1f g".format(fat),
+        "Carbs" to "%.1f g".format(carbs),
     )
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp)
             .clip(RoundedCornerShape(12.dp))
-            .padding(12.dp)
+            .background(Color(0xFFF7F7F7))
+            .padding(16.dp)
     ) {
-        // Header row
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Text("Metric", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("Detected", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("Recommended", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        }
+        Text(
+            "Nutrition Facts",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        rows.forEach { (label, value, rec) ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(label, modifier = Modifier.weight(1f))
-                Text(value, modifier = Modifier.weight(1f))
-                Text(rec, modifier = Modifier.weight(1f))
+        rows.forEach { (label, value) ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(label, fontSize = 15.sp)
+                Text(value, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Divider(modifier = Modifier.padding(vertical = 6.dp), color = Color(0x22000000))
         }
     }
 }
+
 
 
 
@@ -286,73 +298,115 @@ fun InfoTable(
 //////////////////////////////////////////////////////////
 
 @Composable
-fun DonutChart(
-    protein: Double,
-    fat: Double,
-    carbs: Double,
-    totalCalories: Double,
-    recommendedCalories: Double
+fun MealPercentDonut(
+    mealCalories: Double,
+    dailyGoal: Double
 ) {
-    // Convert grams → kcal
-    val proteinKcal = protein * 4
-    val fatKcal = fat * 9
-    val carbKcal = carbs * 4
-    val remaining = (recommendedCalories - totalCalories).coerceAtLeast(0.0)
+    val percent = (mealCalories / dailyGoal)
+        .coerceIn(0.0, 1.0)
 
-    val segments = listOf(
-        Triple("Protein", proteinKcal, Color(0xFF64B5F6)),
-        Triple("Fat", fatKcal, Color(0xFFFFB74D)),
-        Triple("Carbs", carbKcal, Color(0xFF81C784)),
-        Triple("Remaining", remaining, Color(0xFFE0E0E0))
-    )
+    val sweepAngle = (percent * 360f).toFloat()
 
-    val totalKcal = segments.sumOf { it.second }
-    if (totalKcal <= 0) return
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-    val percentOfGoal = (totalCalories / recommendedCalories * 100).coerceIn(0.0, 999.0)
-
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(260.dp)) {
-            var startAngle = -90f
-
-            val diameter = size.minDimension
-            val strokeWidth = 40f
-
-            segments.forEach { (_, value, color) ->
-                if (value <= 0) return@forEach
-
-                val sweep = 360f * (value / totalKcal).toFloat()
-
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(150.dp)) {
                 drawArc(
-                    color = color,
-                    startAngle = startAngle,
-                    sweepAngle = sweep,
+                    color = Color(0xFFE0E0E0),
+                    startAngle = -90f,
+                    sweepAngle = 360f,
                     useCenter = false,
-                    style = Stroke(width = strokeWidth),
-                    topLeft = androidx.compose.ui.geometry.Offset(
-                        (size.width - diameter) / 2,
-                        (size.height - diameter) / 2
-                    ),
-                    size = androidx.compose.ui.geometry.Size(diameter, diameter)
+                    style = Stroke(width = 22f)
                 )
 
-                startAngle += sweep
+                drawArc(
+                    color = Color(0xFF4FC3F7), // 蓝色更清爽
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    style = Stroke(width = 22f)
+                )
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${(percent * 100).toInt()}%",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text("of daily", fontSize = 12.sp, color = Color.Gray)
             }
         }
 
-        // Center Text
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${"%.0f".format(percentOfGoal)}%", fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text("of daily goal")
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Meal % Goal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+@Composable
+fun MacroDonut(
+    protein: Double,
+    fat: Double,
+    carbs: Double
+) {
+    val proteinKcal = protein * 4
+    val fatKcal = fat * 9
+    val carbKcal = carbs * 4
+
+    val total = (proteinKcal + fatKcal + carbKcal).takeIf { it > 0 } ?: 1.0
+
+    val segments = listOf(
+        Triple("Protein", proteinKcal, Color(0xFF64B5F6)),
+        Triple("Carbs",   carbKcal,    Color(0xFFFFF176)),
+        Triple("Fat",     fatKcal,     Color(0xFFFF8A65))
+    )
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(150.dp)) {
+
+                var startAngle = -90f
+
+                segments.forEach { (_, value, color) ->
+                    val sweep = (value / total * 360f).toFloat()
+
+                    drawArc(
+                        color = color,
+                        startAngle = startAngle,
+                        sweepAngle = sweep,
+                        useCenter = false,
+                        style = Stroke(width = 22f)
+                    )
+
+                    startAngle += sweep
+                }
+            }
+
+            Text(
+                "Macros",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
-        // Labels
-        Text("Protein", modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp), fontSize = 12.sp)
-        Text("Fat", modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp), fontSize = 12.sp)
-        Text("Carbs", modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), fontSize = 12.sp)
-        Text("Remaining", modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp), fontSize = 12.sp)
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // ---------- LEGENDS ----------
+        segments.forEach { (label, value, color) ->
+            val percent = value / total * 100
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(color)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("$label: ${percent.toInt()}%", fontSize = 13.sp)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
     }
 }
