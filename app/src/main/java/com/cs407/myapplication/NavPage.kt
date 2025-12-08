@@ -1,4 +1,4 @@
-package com.cs407.myapplication.ui
+package com.cs407.myapplication
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
@@ -6,6 +6,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.cs407.myapplication.ui.CalendarScreen
+import com.cs407.myapplication.ui.CameraScreen
+import com.cs407.myapplication.ui.EditProfileScreen
+import com.cs407.myapplication.ui.LoginScreen
+import com.cs407.myapplication.ui.ProfileScreen
+import com.cs407.myapplication.ui.ResultScreen
 import com.google.firebase.auth.FirebaseAuth
 
 @Composable
