@@ -28,7 +28,7 @@ import com.cs407.myapplication.viewModels.DietPlanViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-private const val SERVER_BASE = "http://10.0.2.2:8000"
+private const val SERVER_BASE = "https://calculating-belle-predestinately.ngrok-free.dev"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,10 +44,8 @@ fun CalendarScreen(
 
     var meals by remember { mutableStateOf<List<MealPlanDto>?>(null) }
 
-    // ⭐ 日历是否展开
     var calendarExpanded by remember { mutableStateOf(true) }
 
-    // ⭐ Generate 模式变量
     var generating by remember { mutableStateOf(false) }
     var startDate by remember { mutableStateOf<LocalDate?>(null) }
 
@@ -70,7 +68,6 @@ fun CalendarScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp)
         ) {
 
-            // -------- 折叠时的一行显示 --------
             if (!calendarExpanded) {
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -90,7 +87,6 @@ fun CalendarScreen(
                 }
             }
 
-            // -------- 日历本体 --------
             AnimatedVisibility(visible = calendarExpanded) {
                 AndroidView(
                     factory = { CalendarView(ctx) },
@@ -107,12 +103,8 @@ fun CalendarScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // =======================
-            // ⭐ 按钮逻辑部分
-            // =======================
             if (calendarExpanded) {
 
-                // ⭐ 不是 generate 模式时显示“View + Generate”
                 if (startDate == null) {
 
                     Button(
@@ -122,7 +114,7 @@ fun CalendarScreen(
                                 .makeText(ctx, "Please select a date", Toast.LENGTH_SHORT).show()
 
                             meals = viewModel.loadMealsForDate(date)
-                            calendarExpanded = false   // 收起日历
+                            calendarExpanded = false
                         }
                     ) { Text("View Diet Plan for Selected Day") }
 
@@ -140,7 +132,6 @@ fun CalendarScreen(
                     ) { Text("Generate Diet Plan") }
 
                 } else {
-                    // ⭐ startDate != null → 第二步确认 End Date
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
@@ -186,9 +177,6 @@ fun CalendarScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            // =====================
-            // ⭐ Meals 显示
-            // =====================
             meals?.let { list ->
                 Text("Meals for $selectedText", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))

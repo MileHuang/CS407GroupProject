@@ -111,14 +111,10 @@ class DietPlanViewModel : ViewModel() {
         }
     }
 
-    // ---------------- UserProfile 同步相关 ----------------
-
-    /** 本地更新（例如 Profile 页面填完后立刻更新 UI） */
     fun updateUserProfile(profile: UserProfile) {
         userProfile = profile
     }
 
-    /** 主动从 Firebase 刷新用户档案 */
     fun refreshProfileFromCloud(
         onError: (Throwable) -> Unit = {}
     ) {
@@ -132,7 +128,6 @@ class DietPlanViewModel : ViewModel() {
         )
     }
 
-    /** 保存档案到 Firebase，并同步到本地 ViewModel */
     fun saveProfileToCloud(
         profile: UserProfile,
         onSuccess: () -> Unit = {},
@@ -146,14 +141,12 @@ class DietPlanViewModel : ViewModel() {
         )
     }
 
-    // ---------------- 日期范围 ----------------
 
     fun updateDateRange(start: LocalDate, end: LocalDate) {
         startDate = start
         endDate = end
     }
 
-    // ---------------- Diet Plan 相关 ----------------
 
     private fun combinePlan(
         oldPlan: DietPlanResponseDto?,
@@ -208,7 +201,6 @@ class DietPlanViewModel : ViewModel() {
                 onSuccess = onSuccess
             )
         } else {
-            // 还没有，就从 Firebase 读取一次
             profileRepository.loadProfile(
                 onSuccess = { profile ->
                     if (profile == null) {
@@ -233,7 +225,6 @@ class DietPlanViewModel : ViewModel() {
         }
     }
 
-    /** 实际去服务器请求饮食计划的部分，抽成单独函数方便复用 */
     private fun launchDietPlanRequest(
         profile: UserProfile,
         start: LocalDate,

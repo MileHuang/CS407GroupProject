@@ -28,11 +28,11 @@ interface CalorieApi {
 object CalorieApiClient {
 
     // 本机 emulator 访问电脑：10.0.2.2:8000
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "https://calculating-belle-predestinately.ngrok-free.dev/"
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(300, TimeUnit.SECONDS)
+        .readTimeout(300, TimeUnit.SECONDS)
         .build()
 
     private val moshi: Moshi = Moshi.Builder()

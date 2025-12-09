@@ -8,13 +8,14 @@ import java.util.concurrent.TimeUnit
 
 object DietPlanApiClient {
 
-    private const val BASE_URL = "http://10.0.2.2:8000/"
+    private const val BASE_URL = "https://calculating-belle-predestinately.ngrok-free.dev/"
+
 
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(120, TimeUnit.SECONDS)   // 连接超时
-            .readTimeout(120, TimeUnit.SECONDS)      // 读超时（等待服务器返回）
-            .writeTimeout(120, TimeUnit.SECONDS)     // 写超时
+            .connectTimeout(3000, TimeUnit.SECONDS)   // 连接超时
+            .readTimeout(3000, TimeUnit.SECONDS)      // 读超时（等待服务器返回）
+            .writeTimeout(3000, TimeUnit.SECONDS)     // 写超时
             .build()
     }
 
