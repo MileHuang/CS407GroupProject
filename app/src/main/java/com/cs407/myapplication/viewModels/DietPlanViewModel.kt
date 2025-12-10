@@ -1,9 +1,11 @@
 package com.cs407.myapplication.viewModels
 
+
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cs407.myapplication.data.FirebaseProfileRepository
+import com.cs407.myapplication.data.FirebaseDietPlanRepository
 import com.cs407.myapplication.network.DietPlanApiClient
 import com.cs407.myapplication.network.DietPlanDayDto
 import com.cs407.myapplication.network.DietPlanResponseDto
@@ -46,7 +48,7 @@ data class UserProfile(
     val goalDescription: String? = null,
 )
 
-// ---------------- Repository 接口 ----------------
+// ---------------- DietPlanRepository ----------------
 
 interface DietPlanRepository {
     suspend fun requestDietPlanForRange(
@@ -65,41 +67,37 @@ class DietPlanViewModel : ViewModel() {
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
     private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
 
-    // Firebase user profile 仓库
-    private val profileRepository = FirebaseProfileRepository()
 
-    // 应用上下文 & 本地缓存路径
+    private val profileRepository = FirebaseProfileRepository()
+    private val dietPlanCloudRepository = FirebaseDietPlanRepository()
+
     private var appContext: Context? = null
     private var localPlanPathInternal: String? = null
 
     val localPlanPath: String?
         get() = localPlanPathInternal
 
-    // 日期范围
     var startDate: LocalDate? = null
         private set
     var endDate: LocalDate? = null
         private set
 
-    // UserProfile：StateFlow 方便 UI 监听
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfileFlow: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
-    // 兼容原来的属性访问方式
     var userProfile: UserProfile?
         get() = _userProfile.value
         private set(value) {
             _userProfile.value = value
         }
 
-    // 计划缓存 & 当前选中日期的 meals
     var cachedPlan: DietPlanResponseDto? = null
         private set
 
     var selectedDayMeals: List<MealPlanDto>? = null
         private set
 
-    // ---------------- 初始化 ----------------
+    // ----------------Initialization----------------
 
     fun initIfNeeded(context: Context) {
         if (appContext == null) {
@@ -142,65 +140,48 @@ class DietPlanViewModel : ViewModel() {
     }
 
 
+
+    fun refreshPlanFromCloud(
+        onError: (Throwable) -> Unit = {}
+    ) {
+        dietPlanCloudRepository.loadLatestPlan(
+            onSuccess = { plan ->
+                if (plan != null) {
+                    cachedPlan = plan
+                    startDate = LocalDate.parse(plan.start_date)
+                    endDate = LocalDate.parse(plan.end_date)
+                }
+            },
+            onError = onError
+        )
+    }
+
+
+
     fun updateDateRange(start: LocalDate, end: LocalDate) {
         startDate = start
         endDate = end
     }
 
 
-    private fun combinePlan(
-        oldPlan: DietPlanResponseDto?,
-        newPlan: DietPlanResponseDto
-    ): DietPlanResponseDto {
-        if (oldPlan == null) return newPlan
-
-        val dayMap = LinkedHashMap<String, DietPlanDayDto>()
-        for (d in oldPlan.days) {
-            dayMap[d.date] = d
-        }
-        for (d in newPlan.days) {
-            dayMap[d.date] = d
-        }
-
-        val mergedDays = dayMap.values.sortedBy { LocalDate.parse(it.date) }
-        val mergedStart = mergedDays.firstOrNull()?.date ?: newPlan.start_date
-        val mergedEnd = mergedDays.lastOrNull()?.date ?: newPlan.end_date
-
-        return DietPlanResponseDto(
-            id = newPlan.id,
-            start_date = mergedStart,
-            end_date = mergedEnd,
-            goal = newPlan.goal,
-            activity_category = newPlan.activity_category,
-            tdee_kcal = newPlan.tdee_kcal,
-            summary = newPlan.summary,
-            days = mergedDays
-        )
-    }
-
-    /**
-     * 生成一段时间的饮食计划：
-     * - 如果内存里已经有 userProfile：直接用它；
-     * - 如果还没有：先从 Firebase 读取 userProfile，读取成功后再请求饮食计划；
-     * - 如果 Firebase 里也没有档案：直接 onError，完全不再用硬编码默认值。
-     */
     fun requestAndCachePlanForRange(
         start: LocalDate,
         end: LocalDate,
         onError: (Throwable) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
-        val cachedProfile = userProfile
-        if (cachedProfile != null) {
-            // 已有 profile，直接用
+
+        val currentProfile = userProfile
+        if (currentProfile != null) {
             launchDietPlanRequest(
-                profile = cachedProfile,
+                profile = currentProfile,
                 start = start,
                 end = end,
                 onError = onError,
                 onSuccess = onSuccess
             )
         } else {
+
             profileRepository.loadProfile(
                 onSuccess = { profile ->
                     if (profile == null) {
@@ -248,12 +229,19 @@ class DietPlanViewModel : ViewModel() {
                     savePlanToLocal(mergedPlan)
                 }
 
+                dietPlanCloudRepository.saveLatestPlan(
+                    plan = mergedPlan,
+                    onSuccess = { /* 可以记录 log，当前先忽略 */ },
+                    onError = { /* 不打断 UI，只是云端保存失败 */ }
+                )
+
                 onSuccess()
             } catch (e: Throwable) {
                 onError(e)
             }
         }
     }
+
 
     fun loadMealsForDate(targetDate: LocalDate): List<MealPlanDto>? {
         var plan = cachedPlan
@@ -279,13 +267,10 @@ class DietPlanViewModel : ViewModel() {
         return day.meals
     }
 
-    // ---------------- 本地缓存 ----------------
 
     private fun requireLocalPath(): String {
         return localPlanPathInternal
-            ?: throw IllegalStateException(
-                "DietPlanViewModel not initialized, call initIfNeeded(context) first."
-            )
+            ?: throw IllegalStateException("DietPlanViewModel not initialized, call initIfNeeded(context) first.")
     }
 
     private fun savePlanToLocal(plan: DietPlanResponseDto) {
@@ -321,6 +306,35 @@ class DietPlanViewModel : ViewModel() {
             null
         }
     }
+
+
+    private fun combinePlan(
+        oldPlan: DietPlanResponseDto?,
+        newPlan: DietPlanResponseDto
+    ): DietPlanResponseDto {
+        if (oldPlan == null) return newPlan
+
+        val dayMap = LinkedHashMap<String, DietPlanDayDto>()
+        for (d in oldPlan.days) {
+            dayMap[d.date] = d
+        }
+        for (d in newPlan.days) {
+            dayMap[d.date] = d
+        }
+
+        val mergedDays = dayMap.values.sortedBy { LocalDate.parse(it.date) }
+        val mergedStart = mergedDays.firstOrNull()?.date ?: newPlan.start_date
+        val mergedEnd = mergedDays.lastOrNull()?.date ?: newPlan.end_date
+
+        return DietPlanResponseDto(
+            id = newPlan.id,
+            start_date = mergedStart,
+            end_date = mergedEnd,
+            goal = newPlan.goal,
+            activity_category = newPlan.activity_category,
+            tdee_kcal = newPlan.tdee_kcal,
+            summary = newPlan.summary,
+            days = mergedDays
+        )
+    }
 }
-
-
